@@ -1,0 +1,109 @@
+=============================================
+Criação da VM
+
+az vm create \
+  --resource-group rg-mottu \
+  --name vm-devops-global \
+  --image "Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest" \
+  --admin-username admlnx \
+  --admin-password fiap@2tdsvms \
+  --size Standard_B2s \
+  --public-ip-address-allocation static \
+  --storage-sku Premium_LRS
+
+=============================================
+Instalações para a VM
+
+sudo apt-get update -y
+sudo apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg-agent \
+    software-properties-common \
+    git \
+    unzip \
+    net-tools \
+    htop \
+    tree \
+    jq \
+    python3 \
+    python3-pip
+
+sudo apt-get install -y docker.io
+
+=============================================
+Configurações para criação do Docker
+
+systemctl enable Docker
+sudo systemctl start Docker
+sudo usermod -aG docker admlnx
+
+**Faça logout para as mudanças serem aplicadas**
+**Após logar verifique se a instalação está funcionando**
+
+sudo systemctl start Docker
+docker ps
+
+=============================================
+Preparação para o Docker
+
+git clone https://github.com/Pablo0703/java_global_solution.git
+cd java_global_solution
+
+**Crie o docker-compose.yml**
+
+nano
+
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_URL=jdbc:oracle:thin:@oracle-db:1521:orcl
+      - DB_USERNAME=rm556834
+      - DB_PASSWORD=070301
+    depends_on:
+      - oracle-db
+    restart: unless-stopped
+
+  oracle-db:
+    image: container-registry.oracle.com/database/express:21.3.0-xe
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PWD=070301
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    restart: unless-stopped
+
+volumes:
+  oracle-data:
+
+
+=============================================
+Criação e execução Docker
+
+sudo apt-get update
+sudo apt install docker-compose
+
+# Construir a imagem da aplicação
+docker-compose build
+
+**Antes de iniciar os containers em segundo plano, vamos alterar o timeout 
+da maquina, para evitar erros**
+COMPOSE_HTTP_TIMEOUT=300 docker-compose up -d
+
+# Iniciar os containers em segundo plano
+docker-compose up -d
+
+# Verificar logs
+docker-compose logs -f
+
+=============================================
+Teste a aplicação
+
+curl http://localhost:8081/usuarios
